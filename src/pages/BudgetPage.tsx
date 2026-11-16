@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, RefreshCw, Trash2, Target, Copy, AlertTriangle, CheckCircle2, Pencil } from "lucide-react";
+import { format } from "date-fns-jalali"; // اضافه شد برای دریافت تاریخ شمسی
 import { definitionsDb, type DefinitionRecord } from "../database/definitionsDb";
 import { copyBudgetsFromPreviousMonth, deleteBudget, getBudgets, saveBudget, type BudgetView } from "../services/budgetService";
 import "./BudgetPage.css";
@@ -12,7 +13,6 @@ const formatted = (v: string) => {
 };
 
 const MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
-const YEARS = [1403, 1404, 1405, 1406, 1407];
 
 export default function BudgetPage() {
   const [rows, setRows] = useState<BudgetView[]>([]);
@@ -20,11 +20,17 @@ export default function BudgetPage() {
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
   
-  const now = new Date();
-  const [year, setYear] = useState(1405); 
-  const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, "0")); 
+  // دریافت سال و ماه شمسی جاری به صورت خودکار
+  const currentYear = Number(format(new Date(), "yyyy"));
+  const currentMonth = format(new Date(), "MM");
+
+  const [year, setYear] = useState(currentYear); 
+  const [month, setMonth] = useState(currentMonth); 
   const period = `${year}-${month}`; 
   
+  // ساخت لیست سال‌ها بر اساس سال جاری شمسی
+  const YEARS = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,7 +46,6 @@ export default function BudgetPage() {
   const total = rows.reduce((s, x) => s + x.amount, 0);
   const spent = rows.reduce((s, x) => s + x.spent, 0);
 
-  // تابع جدید برای شروع ویرایش
   const startEdit = (r: BudgetView) => {
     setCategoryId(r.definitionId);
     setAmount(formatted(String(r.amount)));
