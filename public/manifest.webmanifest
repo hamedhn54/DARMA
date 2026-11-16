@@ -1,15 +1,24 @@
 {
-  "name": "دارما | مدیریت مالی شخصی",
+  "name": "DARMA | مدیریت مالی شخصی",
   "short_name": "DARMA",
-  "description": "مدیریت مالی شخصی، تراکنش‌ها، بودجه و اقساط",
-  "lang": "fa-IR",
-  "dir": "rtl",
+  "description": "سامانه جامع مدیریت مالی شخصی دارما",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
-  "background_color": "#f4f6f9",
-  "theme_color": "#17263b",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAvUlEQVR4nO3XsQ2AMAxE0Z8sQcnCLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zF/QCx2wZ8l5k4AAAAAElFTkSuQmCC",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAvUlEQVR4nO3XsQ2AMAxE0Z8sQcnCLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zFLbS9z9zF/QCx2wZ8l5k4AAAAAElFTkSuQmCC",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }

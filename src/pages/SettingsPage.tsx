@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Download, Upload, AlertTriangle, Trash2, CheckCircle2 } from "lucide-react";
-import { exportDatabaseToFile, importDatabaseFromFile, cleanupOrphanData } from "../services/backupService";
+import { Download, Upload, AlertTriangle, Trash2, CheckCircle2, RefreshCcw } from "lucide-react";
+import { exportDatabaseToFile, importDatabaseFromFile, cleanupOrphanData, resetAllData } from "../services/backupService";
 import "./SettingsPage.css";
 
 export default function SettingsPage() {
@@ -49,11 +49,31 @@ export default function SettingsPage() {
     } finally { setBusy(false); }
   };
 
+  const handleReset = async () => {
+    const confirm1 = window.confirm("⚠️ هشدار جدی: تمام تراکنش‌ها، حساب‌ها، وام‌ها و بودجه‌های شما برای همیشه پاک خواهند شد. آیا مطمئن هستید؟");
+    if (!confirm1) return;
+    
+    const confirm2 = window.prompt("برای تأیید نهایی، عبارت «حذف» را تایپ کنید:");
+    if (confirm2 !== "حذف") {
+      alert("عملیات لغو شد.");
+      return;
+    }
+
+    setBusy(true); setMessage(""); setError("");
+    try {
+      await resetAllData();
+      setMessage("تمام اطلاعات با موفقیت پاک شد. در حال بازنشانی برنامه...");
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در پاک‌سازی داده‌ها.");
+    } finally { setBusy(false); }
+  };
+
   return (
     <main className="settings-page" dir="rtl">
       <header className="settings-heading">
         <h1>تنظیمات و مدیریت اطلاعات</h1>
-        <p>از اطلاعات مالی خود نسخه پشتیبان تهیه کنید، اطلاعات را بازیابی کنید یا داده‌های خراب را پاک کنید.</p>
+        <p>از اطلاعات مالی خود نسخه پشتیبان تهیه کنید، اطلاعات را بازیابی کنید یا برنامه را ریست کنید.</p>
       </header>
 
       <div className="settings-grid">
@@ -80,8 +100,17 @@ export default function SettingsPage() {
           <div className="settings-card-icon cleanup"><Trash2 size={24}/></div>
           <h2>پاک‌سازی داده‌های یتیم</h2>
           <p>اگر داده‌های تکراری یا نامربوط (مانند اقساط وام‌های حذف‌شده) در دیتابیس باقی مانده، این ابزار آن‌ها را پاک می‌کند.</p>
-          <button className="settings-btn danger" onClick={() => void handleCleanup()} disabled={busy}>
+          <button className="settings-btn secondary" onClick={() => void handleCleanup()} disabled={busy}>
             پاک‌سازی دیتابیس
+          </button>
+        </div>
+
+        <div className="settings-card danger-zone">
+          <div className="settings-card-icon reset"><RefreshCcw size={24}/></div>
+          <h2>شروع مجدد (پاک‌سازی کل اطلاعات)</h2>
+          <p>تمام داده‌های مالی (تراکنش‌ها، وام‌ها، بودجه‌ها) برای همیشه پاک می‌شوند و برنامه به حالت اولیه برمی‌گردد.</p>
+          <button className="settings-btn danger" onClick={() => void handleReset()} disabled={busy}>
+            پاک کردن تمام اطلاعات
           </button>
         </div>
       </div>

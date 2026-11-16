@@ -108,9 +108,12 @@ export async function postPersonOperation(input: PersonOperationInput): Promise<
   const id = crypto.randomUUID();
   const lines = makeLines(normalized, id, cash);
   if (lines.reduce((s,l) => s + l.debit, 0) !== lines.reduce((s,l) => s + l.credit, 0)) throw new Error("سند حسابداری تراز نیست.");
+  
   await definitionsDb.transaction("rw", definitionsDb.journalEntries, definitionsDb.journalLines, async () => {
-    const previous = await definitionsDb.journalEntries.toArray();
-    const docNo = previous.reduce((max, entry) => Math.max(max, entry.docNo || 0), 0) + 1;
+    // بهینه‌سازی تولید شماره سند
+    const lastEntry = await definitionsDb.journalEntries.orderBy("docNo").last();
+    const docNo = (lastEntry?.docNo || 0) + 1;
+    
     await definitionsDb.journalEntries.add({ ...buildEntry(normalized, id), docNo });
     await definitionsDb.journalLines.bulkAdd(lines.map(line => ({ ...line, id: crypto.randomUUID() })));
   });

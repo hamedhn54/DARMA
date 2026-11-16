@@ -9,8 +9,15 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// ثبت سرویس‌ورکر برای قابلیت PWA
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js').catch(error => console.warn('DARMA offline worker registration failed', error));
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('DARMA PWA: Service Worker registered successfully.', registration);
+      })
+      .catch(error => {
+        console.log('DARMA PWA: Service Worker registration failed.', error);
+      });
   });
 }

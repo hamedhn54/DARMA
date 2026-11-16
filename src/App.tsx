@@ -105,7 +105,7 @@ function App() {
         <nav>
           {nav.map(({ label, icon: Icon }) => (
             <button key={label} className={`nav-item ${active === label ? "selected" : ""}`} onClick={() => navigate(label)}>
-              <Icon size={19} /><span>{label}</span>{label === "وام‌ها و خرید اعتباری" && <i>۳</i>}
+              <Icon size={19} /><span>{label}</span>
             </button>
           ))}
         </nav>

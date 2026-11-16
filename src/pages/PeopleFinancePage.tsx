@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { addMonths, eachDayOfInterval, endOfMonth, format, getDay, isValid, parse, startOfMonth, subMonths } from "date-fns-jalali";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, FileText, HandCoins, Pencil, RefreshCw, Search, Trash2, UserRound, Wallet, X, Ban } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, FileText, HandCoins, Pencil, RefreshCw, Search, Trash2, UserRound, Wallet, X, Ban, Info } from "lucide-react";
 import { definitionsDb, type DefinitionRecord, type JournalEntry, type JournalLine } from "../database/definitionsDb";
 import { deleteTestPersonOperation, getCashBalances, getPersonBalances, getPersonHistory, postPersonOperation, updatePersonOperation, voidPersonOperation, type PersonBalance, type PersonOperation, type PersonJournalEntry } from "../services/personLedgerService";
 import "./PeopleFinancePage.css";
@@ -72,6 +72,7 @@ export default function PeopleFinancePage() {
   const selected = people.find(p => p.id === selectedId);
   const balance = balances.find(b => b.personId === selectedId) || { receivable: 0, payable: 0, net: 0 };
   const totals = balances.reduce((t, b) => ({ receivable: t.receivable + b.receivable, payable: t.payable + b.payable }), { receivable: 0, payable: 0 });
+  
   const filteredHistory = useMemo(() => history.filter(entry => {
     if (!showVoided && entry.status === "void") return false;
     if (filterPerson && entry.personId !== filterPerson) return false;
@@ -83,11 +84,13 @@ export default function PeopleFinancePage() {
   }), [history, filterPerson, filterType, filterFrom, filterTo, showVoided]);
 
   const resetForm = () => { setEditingId(null); setAmount(""); setDescription(""); setType("lend"); setCashAccountId(""); setDate(new Date()); setIsTest(false); setError(""); };
+  
   const startEdit = (entry: PersonJournalEntry) => {
     setEditingId(entry.id); setSelectedId(entry.personId); setType(entry.type); setAmount(numberText(entry.amount));
     setCashAccountId(entry.cashAccountId || ""); setDate(new Date(entry.date)); setDescription(entry.description); setIsTest(!!entry.isTest); setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  
   const submit = async () => {
     setError("");
     if (!selectedId) { setError("ابتدا یک شخص انتخاب کن."); return; }
@@ -102,9 +105,11 @@ export default function PeopleFinancePage() {
     } catch (e) { setError(e instanceof Error ? e.message : "ذخیره عملیات انجام نشد."); }
     finally { setBusy(false); }
   };
+  
   const openDetails = async (entry: PersonJournalEntry) => {
     setDetailId(entry.id); setDetailLines(await definitionsDb.journalLines.where("entryId").equals(entry.id).toArray());
   };
+  
   const voidEntry = async (entry: PersonJournalEntry) => {
     const reason = window.prompt("علت ابطال سند را وارد کن:", "ثبت اشتباه");
     if (reason === null) return;
@@ -112,15 +117,18 @@ export default function PeopleFinancePage() {
     try { await voidPersonOperation(entry.id, reason); await refresh(); if (detailId === entry.id) setDetailId(null); }
     catch (e) { window.alert(e instanceof Error ? e.message : "ابطال انجام نشد."); }
   };
+  
   const deleteTest = async (entry: PersonJournalEntry) => {
     if (!window.confirm(`سند آزمایشی شماره ${entry.docNo ?? "—"} برای همیشه حذف شود؟`)) return;
     try { await deleteTestPersonOperation(entry.id); await refresh(); if (detailId === entry.id) setDetailId(null); }
     catch (e) { window.alert(e instanceof Error ? e.message : "حذف انجام نشد."); }
   };
+  
   const markTest = async (entry: PersonJournalEntry) => {
     if (!window.confirm("این سند به‌عنوان آزمایشی علامت‌گذاری شود؟ پس از آن امکان حذف کنترل‌شده خواهد داشت.")) return;
     await definitionsDb.journalEntries.update(entry.id, { isTest: true }); await refresh();
   };
+  
   const personName = (id: string) => people.find(p => p.id === id)?.name || "شخص حذف‌شده";
   const accountName = (id?: string) => accounts.find(a => a.id === id)?.name || "—";
 
@@ -142,7 +150,14 @@ export default function PeopleFinancePage() {
           <div className="pf-panel pf-person-detail"><div className="pf-panel-title"><div><h2>{selected.name}</h2><small>پرونده مالی شخص</small></div><span className="pf-role">{selected.personRole === "creditor" ? "طلبکار" : selected.personRole === "debtor" ? "بدهکار" : "طلبکار و بدهکار"}</span></div>
             <div className="pf-balance-grid"><div><small>طلب ناخالص باقی‌مانده</small><b>{fmt(balance.receivable)}</b></div><div><small>بدهی ناخالص باقی‌مانده</small><b>{fmt(balance.payable)}</b></div><div><small>خالص وضعیت</small><b>{balance.net >= 0 ? "طلب " : "بدهی "}{fmt(balance.net)}</b></div></div>
           </div>
-          <div className="pf-panel pf-operation"><div className="pf-panel-title"><div><h2>{editingId ? "ویرایش سند مالی" : "ثبت عملیات مالی"}</h2><small>{editingId ? "تغییرات روی همان سند ذخیره می‌شود و مانده‌ها مجدداً محاسبه می‌شوند." : "هر عملیات به‌صورت سند دوطرفه ذخیره می‌شود."}</small></div><HandCoins size={20}/></div>
+          <div className="pf-panel pf-operation"><div className="pf-panel-title"><div><h2>{editingId ? "ویرایش سند مالی" : "ثبت عملیات مالی"}</h2><small>{editingId ? "تغییرات روی همان سند ذخیره می‌شود." : "هر عملیات به‌صورت سند دوطرفه ذخیره می‌شود."}</small></div><HandCoins size={20}/></div>
+            
+            {/* نمایش موجودی فعلی شخص بالای فرم */}
+            <div className="pf-form-hint" style={{ background: 'var(--surface-soft)', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted)' }}>
+              <Info size={16} />
+              وضعیت فعلی {selected.name}: {balance.net >= 0 ? "طلبکار" : "بدهکار"} به مبلغ {fmt(balance.net)}
+            </div>
+
             <div className="pf-form">
               <label>نوع عملیات<select value={type} onChange={e => setType(e.target.value as PersonOperation)}>{Object.entries(opLabels).filter(([v]) => ["lend", "borrow", "collect", "repay", "offset"].includes(v)).map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
               <label>مبلغ (ریال)<input inputMode="numeric" value={amount} onChange={e => { const n = parseAmount(e.target.value); setAmount(n ? numberText(n) : ""); }} placeholder="مبلغ را وارد کن"/></label>

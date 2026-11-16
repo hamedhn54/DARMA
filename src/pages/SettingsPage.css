@@ -8,6 +8,7 @@
 .settings-card-icon.backup { background: #e0f2fe; color: #0284c7; }
 .settings-card-icon.restore { background: #fef3c7; color: #d97706; }
 .settings-card-icon.cleanup { background: #fee2e2; color: #dc2626; }
+.settings-card-icon.reset { background: #fee2e2; color: #dc2626; }
 .settings-card h2 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0; }
 .settings-card p { font-size: 12px; color: var(--muted); line-height: 1.8; margin: 0; flex-grow: 1; }
 
@@ -23,3 +24,9 @@
 .settings-alert { padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 20px; }
 .settings-alert.success { background: #d1fae5; color: #065f46; }
 .settings-alert.error { background: #fee2e2; color: #991b1b; }
+
+/* استایل کارت خطرناک برای ریست کامل */
+.settings-card.danger-zone {
+  border: 1px solid var(--red);
+  background: rgba(220, 38, 38, 0.02);
+}

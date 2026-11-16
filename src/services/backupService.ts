@@ -126,3 +126,18 @@ export async function cleanupOrphanData(): Promise<string> {
   
   return `${deletedInstallments} قسط یتیم، ${deletedLines} خط سند و ${deletedAttachments} پیوست پاک‌سازی شد.`;
 }
+
+export async function resetAllData(): Promise<void> {
+  await definitionsDb.transaction("rw", 
+    definitionsDb.definitions, definitionsDb.journalEntries, definitionsDb.journalLines, 
+    definitionsDb.installments, definitionsDb.creditPurchases, definitionsDb.budgets, definitionsDb.attachments, 
+    async () => {
+      await definitionsDb.definitions.clear();
+      await definitionsDb.journalEntries.clear();
+      await definitionsDb.journalLines.clear();
+      await definitionsDb.installments.clear();
+      await definitionsDb.creditPurchases.clear();
+      await definitionsDb.budgets.clear();
+      await definitionsDb.attachments.clear();
+    });
+}
