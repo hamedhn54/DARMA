@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Download, Upload, AlertTriangle } from "lucide-react";
-import { exportDatabaseToFile, importDatabaseFromFile } from "../services/backupService";
+import { Download, Upload, AlertTriangle, Trash2, CheckCircle2 } from "lucide-react";
+import { exportDatabaseToFile, importDatabaseFromFile, cleanupOrphanData } from "../services/backupService";
 import "./SettingsPage.css";
 
 export default function SettingsPage() {
@@ -38,18 +38,29 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCleanup = async () => {
+    if (!window.confirm("این عملیات داده‌های یتیم (مثل اقساط وام‌های حذف‌شده) را پاک می‌کند. ادامه می‌دهید؟")) return;
+    setBusy(true); setMessage(""); setError("");
+    try {
+      const result = await cleanupOrphanData();
+      setMessage(`پاک‌سازی با موفقیت انجام شد: ${result}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در پاک‌سازی.");
+    } finally { setBusy(false); }
+  };
+
   return (
     <main className="settings-page" dir="rtl">
       <header className="settings-heading">
         <h1>تنظیمات و مدیریت اطلاعات</h1>
-        <p>از اطلاعات مالی خود نسخه پشتیبان تهیه کنید یا اطلاعات قبلی را بازیابی کنید.</p>
+        <p>از اطلاعات مالی خود نسخه پشتیبان تهیه کنید، اطلاعات را بازیابی کنید یا داده‌های خراب را پاک کنید.</p>
       </header>
 
       <div className="settings-grid">
         <div className="settings-card">
           <div className="settings-card-icon backup"><Download size={24}/></div>
           <h2>پشتیبان‌گیری از اطلاعات</h2>
-          <p>تمام حساب‌ها، تراکنش‌ها، وام‌ها، اقساط و پیوست‌ها در یک فایل دانلود می‌شوند تا در دستگاه دیگری بازیابی کنید.</p>
+          <p>تمام حساب‌ها، تراکنش‌ها، وام‌ها، اقساط و پیوست‌ها در یک فایل دانلود می‌شوند.</p>
           <button className="settings-btn primary" onClick={() => void handleBackup()} disabled={busy}>
             {busy ? "در حال آماده‌سازی..." : "دانلود فایل پشتیبان"}
           </button>
@@ -58,15 +69,24 @@ export default function SettingsPage() {
         <div className="settings-card">
           <div className="settings-card-icon restore"><Upload size={24}/></div>
           <h2>بازیابی از فایل</h2>
-          <p>فایل پشتیبان قبلی را انتخاب کنید. توجه داشته باشید که اطلاعات فعلی با اطلاعات این فایل جایگزین می‌شوند.</p>
+          <p>فایل پشتیبان قبلی را انتخاب کنید. اطلاعات فعلی با اطلاعات این فایل جایگزین می‌شوند.</p>
           <label className="settings-btn secondary">
             انتخاب فایل پشتیبان
             <input type="file" accept=".json" onChange={handleRestore} disabled={busy} style={{ display: "none" }}/>
           </label>
         </div>
+
+        <div className="settings-card">
+          <div className="settings-card-icon cleanup"><Trash2 size={24}/></div>
+          <h2>پاک‌سازی داده‌های یتیم</h2>
+          <p>اگر داده‌های تکراری یا نامربوط (مانند اقساط وام‌های حذف‌شده) در دیتابیس باقی مانده، این ابزار آن‌ها را پاک می‌کند.</p>
+          <button className="settings-btn danger" onClick={() => void handleCleanup()} disabled={busy}>
+            پاک‌سازی دیتابیس
+          </button>
+        </div>
       </div>
 
-      {message && <div className="settings-alert success">{message}</div>}
+      {message && <div className="settings-alert success"><CheckCircle2 size={16}/> {message}</div>}
       {error && <div className="settings-alert error"><AlertTriangle size={16}/> {error}</div>}
     </main>
   );
