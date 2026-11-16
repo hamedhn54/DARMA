@@ -38,7 +38,7 @@ const makeSchedule = (ownerType: InstallmentRecord["ownerType"], ownerId: string
     return { id: crypto.randomUUID(), ownerType, ownerId, installmentNo: i + 1, dueDate: format(addMonths(start, i), "yyyy/MM/dd"), amount, status: "pending" };
   });
 };
-const nextDocNo = async () => (await definitionsDb.journalEntries.toArray()).reduce((m, e) => Math.max(m, e.docNo || 0), 0) + 1;
+const nextDocNo = async () => ((await definitionsDb.journalEntries.orderBy("docNo").last())?.docNo || 0) + 1;
 const makeEntry = (id: string, docNo: number, date: string, type: JournalEntry["type"], amount: number, description: string, extra: Partial<JournalEntry> = {}): JournalEntry => {
   const now = new Date().toISOString();
   return { id, docNo, date, type, amount, description, createdAt: now, updatedAt: now, status: "active", ...extra };
@@ -159,13 +159,10 @@ export async function payInstallment(installmentId: string, cashAccountId: strin
   await payInstallmentPartial(installmentId, cashAccountId, installment.amount - (installment.paidAmount || 0), paymentDate, descriptionOverride);
 }
 
-
 export interface UpdateLoanInput {
   name: string; principal: number; installmentCount: number; firstDueDate: string; note?: string;
 }
 
-/** Updates a loan atomically. Paid installments and their journal entries are immutable;
- * only the remaining schedule and the original opening/receipt journal are adjusted. */
 export async function updateLoan(loanId: string, input: UpdateLoanInput): Promise<void> {
   if (!input.name.trim()) throw new Error("عنوان وام را وارد کن.");
   if (!moneyInt(input.principal)) throw new Error("اصل وام باید مبلغ صحیح و بیشتر از صفر باشد.");
@@ -193,7 +190,6 @@ export async function updateLoan(loanId: string, input: UpdateLoanInput): Promis
       totalInstallments: input.installmentCount, paidInstallments: paidRows.length,
       firstDueDate: input.firstDueDate, note: input.note?.trim(), updatedAt: now,
     });
-    // Keep paid installment rows untouched; reuse pending IDs where possible.
     for (let i=0; i<newSchedule.length; i++) {
       const next = newSchedule[i];
       const old = pendingRows[i];
@@ -222,6 +218,69 @@ export async function updateLoan(loanId: string, input: UpdateLoanInput): Promis
   });
 }
 
+export async function updateCreditPurchase(purchaseId: string, input: CreditInput): Promise<void> {
+  if (!input.platform.trim() || !input.title.trim()) throw new Error("نام پلتفرم و شرح خرید را وارد کن.");
+  if (!moneyInt(input.amount)) throw new Error("مبلغ خرید باید صحیح و بیشتر از صفر باشد.");
+  if (!Number.isInteger(input.installmentCount) || input.installmentCount < 1 || input.installmentCount > 600) throw new Error("تعداد اقساط معتبر نیست.");
+  jalaliDate(input.firstDueDate);
+
+  const purchase = await definitionsDb.creditPurchases.get(purchaseId);
+  if (!purchase) throw new Error("پرونده خرید پیدا نشد.");
+
+  const rows = await definitionsDb.installments.where("ownerId").equals(purchaseId).toArray();
+  const paidRows = rows.filter(x => x.status === "paid").sort((a,b)=>a.installmentNo-b.installmentNo);
+  const pendingRows = rows.filter(x => x.status === "pending").sort((a,b)=>a.installmentNo-b.installmentNo);
+
+  if (input.installmentCount < paidRows.length) throw new Error("تعداد کل اقساط نمی‌تواند کمتر از اقساط پرداخت‌شده باشد.");
+  const paidAmount = paidRows.reduce((sum,x)=>sum+x.amount,0);
+  if (input.amount < paidAmount) throw new Error("مبلغ خرید نمی‌تواند کمتر از مجموع اقساط پرداخت‌شده باشد.");
+
+  const remainingAmount = input.amount - paidAmount;
+  const remainingCount = input.installmentCount - paidRows.length;
+
+  if (remainingCount === 0 && remainingAmount !== 0) throw new Error("برای مانده بدهی، تعداد اقساط باقی‌مانده باید بیشتر از صفر باشد.");
+
+  const openingEntry = await definitionsDb.journalEntries.where("purchaseId").equals(purchaseId).first();
+  if (!openingEntry) throw new Error("سند افتتاحیه خرید پیدا نشد؛ برای جلوگیری از مغایرت، ویرایش متوقف شد.");
+
+  const newSchedule = remainingCount ? makeSchedule("credit", purchaseId, remainingAmount, remainingCount, input.firstDueDate) : [];
+  const now = new Date().toISOString();
+
+  await definitionsDb.transaction("rw", definitionsDb.creditPurchases, definitionsDb.installments, definitionsDb.journalEntries, definitionsDb.journalLines, async () => {
+    await definitionsDb.creditPurchases.update(purchaseId, {
+      platform: input.platform.trim(),
+      title: input.title.trim(),
+      amount: input.amount,
+      installmentCount: input.installmentCount,
+      firstDueDate: input.firstDueDate,
+      note: input.note?.trim(),
+    });
+
+    for (let i=0; i<newSchedule.length; i++) {
+      const next = newSchedule[i];
+      const old = pendingRows[i];
+      if (old) await definitionsDb.installments.update(old.id, { installmentNo: paidRows.length+i+1, dueDate: next.dueDate, amount: next.amount });
+      else await definitionsDb.installments.add({ ...next, installmentNo: paidRows.length+i+1 });
+    }
+    if (pendingRows.length > newSchedule.length) {
+      await definitionsDb.installments.bulkDelete(pendingRows.slice(newSchedule.length).map(x=>x.id));
+    }
+
+    await definitionsDb.journalEntries.update(openingEntry.id, {
+      amount: input.amount,
+      description: `خرید اعتباری ${input.platform.trim()}: ${input.title.trim()}`,
+      updatedAt: now,
+    });
+
+    const lines = await definitionsDb.journalLines.where("entryId").equals(openingEntry.id).toArray();
+    const liabilityLine = lines.find(x=>x.accountCode===creditCode(purchaseId));
+    const expenseLine = lines.find(x=>x.id!==liabilityLine?.id);
+    if (!liabilityLine || !expenseLine) throw new Error("ردیف سند افتتاحیه خرید پیدا نشد؛ تغییری ثبت نشد.");
+    await definitionsDb.journalLines.update(liabilityLine.id, { credit: input.amount, debit: 0 });
+    await definitionsDb.journalLines.update(expenseLine.id, { debit: input.amount, credit: 0 });
+  });
+}
+
 export async function getLoanAndCreditData() {
   const [loans, purchases, installments, accounts] = await Promise.all([
     definitionsDb.definitions.where("kind").equals("loan").toArray(),
@@ -230,9 +289,6 @@ export async function getLoanAndCreditData() {
   return { loans, purchases, installments, accounts: accounts.filter(a => cashKinds.includes(a.kind)) };
 }
 
-
-/** Deletes a loan only when it has never produced a bank/cash movement.
- * The opening journal and unpaid schedule are removed atomically with the loan. */
 export async function deleteLoan(loanId: string): Promise<void> {
   const loan = await definitionsDb.definitions.get(loanId);
   if (!loan || loan.kind !== "loan") throw new Error("پرونده وام پیدا نشد.");
@@ -250,7 +306,6 @@ export async function deleteLoan(loanId: string): Promise<void> {
   }
 
   await definitionsDb.transaction("rw", definitionsDb.definitions, definitionsDb.installments, definitionsDb.journalEntries, definitionsDb.journalLines, async () => {
-    // Recheck inside the transaction to avoid deleting a loan after a concurrent payment.
     const currentEntries = await definitionsDb.journalEntries.where("loanId").equals(loanId).toArray();
     const currentIds = currentEntries.map(entry => entry.id);
     const currentLines = currentIds.length
@@ -265,5 +320,39 @@ export async function deleteLoan(loanId: string): Promise<void> {
       await definitionsDb.journalEntries.where("loanId").equals(loanId).delete();
     }
     await definitionsDb.definitions.delete(loanId);
+  });
+}
+
+export async function deleteCreditPurchase(purchaseId: string): Promise<void> {
+  const purchase = await definitionsDb.creditPurchases.get(purchaseId);
+  if (!purchase) throw new Error("پرونده خرید پیدا نشد.");
+
+  const linkedEntries = await definitionsDb.journalEntries.where("purchaseId").equals(purchaseId).toArray();
+  const linkedEntryIds = linkedEntries.map(entry => entry.id);
+  const linkedLines = linkedEntryIds.length
+    ? await definitionsDb.journalLines.where("entryId").anyOf(linkedEntryIds).toArray()
+    : [];
+  const hasBankMovement = linkedEntries.some(entry => entry.status !== "void" && !!entry.cashAccountId)
+    || linkedLines.some(line => !!line.cashAccountId);
+
+  if (hasBankMovement) {
+    throw new Error("به علت ثبت تراکنش بانکی برای این خرید، امکان حذف آن وجود ندارد.");
+  }
+
+  await definitionsDb.transaction("rw", definitionsDb.creditPurchases, definitionsDb.installments, definitionsDb.journalEntries, definitionsDb.journalLines, async () => {
+    const currentEntries = await definitionsDb.journalEntries.where("purchaseId").equals(purchaseId).toArray();
+    const currentIds = currentEntries.map(entry => entry.id);
+    const currentLines = currentIds.length
+      ? await definitionsDb.journalLines.where("entryId").anyOf(currentIds).toArray()
+      : [];
+    if (currentEntries.some(entry => entry.status !== "void" && !!entry.cashAccountId) || currentLines.some(line => !!line.cashAccountId)) {
+      throw new Error("به علت ثبت تراکنش بانکی برای این خرید، امکان حذف آن وجود ندارد.");
+    }
+    await definitionsDb.installments.where("ownerId").equals(purchaseId).delete();
+    if (currentIds.length) {
+      await definitionsDb.journalLines.where("entryId").anyOf(currentIds).delete();
+      await definitionsDb.journalEntries.where("purchaseId").equals(purchaseId).delete();
+    }
+    await definitionsDb.creditPurchases.delete(purchaseId);
   });
 }
