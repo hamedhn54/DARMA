@@ -8,9 +8,9 @@ import TransactionsPage from "./pages/TransactionsPage";
 import ReportsPage from "./pages/ReportsPage";
 import LoansPage from "./pages/LoansPage";
 import BudgetPage from "./pages/BudgetPage";
-import SettingsPage from "./pages/SettingsPage"; // اضافه شد
+import SettingsPage from "./pages/SettingsPage";
 
-type Theme = "light" | "dark" | "hybrid";
+type Theme = "classic" | "light" | "hybrid";
 
 function App() {
   const [theme, setTheme] = useState<Theme>("hybrid");
@@ -94,9 +94,9 @@ function App() {
             <div className="theme-picker">
               <span>پوسته</span>
               <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} aria-label="انتخاب پوسته">
-                <option value="hybrid">ترکیبی</option>
-                <option value="light">روشن</option>
-                <option value="dark">تیره</option>
+                <option value="hybrid">ترکیبی (تیره/طلایی)</option>
+                <option value="classic">کلاسیک لوکس (سرمه‌ای)</option>
+                <option value="light">روشن مدرن (سبز)</option>
               </select>
             </div>
           </div>
