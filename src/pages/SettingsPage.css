@@ -1,0 +1,19 @@
+.settings-page { padding: 2rem; max-width: 1000px; margin: 0 auto; }
+.settings-heading { margin-bottom: 2rem; }
+.settings-heading h1 { font-size: 1.8rem; color: var(--text-primary, #1c2736); margin-bottom: 0.5rem; }
+.settings-heading p { color: var(--text-secondary, #6b7280); }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+.settings-card { background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 1rem; border: 1px solid #e5e7eb; }
+.settings-card-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.settings-card-icon.backup { background: #e0f2fe; color: #0284c7; }
+.settings-card-icon.restore { background: #fef3c7; color: #d97706; }
+.settings-card h2 { font-size: 1.2rem; margin: 0; color: #1f2937; }
+.settings-card p { font-size: 0.9rem; color: #6b7280; line-height: 1.6; margin: 0; flex-grow: 1; }
+.settings-btn { padding: 0.8rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; text-align: center; border: none; font-family: inherit; font-size: 1rem; }
+.settings-btn.primary { background: #0284c7; color: white; }
+.settings-btn.primary:hover { background: #0369a1; }
+.settings-btn.secondary { background: #f3f4f6; color: #374151; cursor: pointer; border: 1px solid #d1d5db; }
+.settings-btn.secondary:hover { background: #e5e7eb; }
+.settings-alert { margin-top: 2rem; padding: 1rem; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+.settings-alert.success { background: #d1fae5; color: #065f46; }
+.settings-alert.error { background: #fee2e2; color: #991b1b; }
