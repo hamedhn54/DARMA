@@ -1,1 +1,78 @@
-.budget-page{color:var(--text);display:grid;gap:16px}.budget-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.budget-head span{font-size:11px;color:var(--muted)}.budget-head h1{font-size:22px;margin:4px 0}.budget-head p{font-size:11px;color:var(--muted);margin:0}.budget-head>button,.budget-fields button{display:flex;align-items:center;gap:7px;border:0;border-radius:9px;background:var(--navy);color:#fff;padding:10px 14px;font-size:11px}.budget-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.budget-kpis article,.budget-add,.budget-list{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:16px}.budget-kpis span,.budget-kpis b{display:block}.budget-kpis span{font-size:10px;color:var(--muted)}.budget-kpis b{font-size:17px;margin-top:9px}.budget-add h2,.budget-list h2{font-size:13px;margin:0 0 14px;display:flex;align-items:center;gap:8px}.budget-fields{display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:10px;align-items:end}.budget-fields label{display:grid;gap:6px;font-size:10px;color:var(--muted)}.budget-fields input,.budget-fields select{min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);padding:10px;font-size:11px}.budget-error{color:#c45b5b;font-size:11px}.budget-empty,.budget-note{font-size:11px;color:var(--muted)}.budget-row{padding:14px 0;border-bottom:1px solid var(--line)}.budget-row:last-child{border:0}.budget-row-top{display:flex;align-items:center;gap:10px;justify-content:space-between}.budget-row-top>div:first-child{flex:1}.budget-row-top b,.budget-row-top small{display:block}.budget-row-top b{font-size:11px}.budget-row-top small{font-size:9px;color:var(--muted);margin-top:4px}.budget-row-top button{border:0;background:transparent;color:var(--muted)}.budget-track{height:8px;background:var(--surface-soft);border-radius:9px;overflow:hidden;margin:10px 0 5px}.budget-track i{display:block;height:100%;background:#299a78;border-radius:9px}.budget-track i.over{background:#d36b64}.budget-row>small{font-size:9px;color:var(--muted)}.budget-row>small.over-text{color:#d36b64}.budget-note{line-height:1.9;margin:0}@media(max-width:850px){.budget-fields{grid-template-columns:1fr 1fr}.budget-kpis{grid-template-columns:1fr}}@media(max-width:520px){.budget-fields{grid-template-columns:1fr}.budget-head{align-items:flex-start;flex-direction:column}}
+.budget-page { padding: 0; }
+.budget-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.budget-head h1 { font-size: 24px; margin: 4px 0 6px; }
+.budget-head p { font-size: 13px; color: var(--muted); }
+.budget-head span { font-size: 11px; color: var(--gold); font-weight: 600; }
+.budget-head button { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; }
+
+/* انتخاب ماه و دکمه کپی */
+.budget-period { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--line); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+.budget-period-select { display: flex; align-items: center; gap: 10px; }
+.budget-period-select label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.budget-period-select select { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--text); font-family: inherit; outline: none; }
+.budget-copy-btn { display: flex; align-items: center; gap: 6px; background: var(--surface-soft); border: 1px solid var(--line); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+.budget-copy-btn:hover { background: var(--line); }
+
+/* کارت‌های خلاصه */
+.budget-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.budget-kpis article { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.budget-kpis span { font-size: 12px; color: var(--muted); }
+.budget-kpis b { display: block; font-size: 18px; margin-top: 8px; color: var(--text); }
+
+/* پیام‌های خطا و موفقیت */
+.budget-alert { padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.budget-alert.error { background: #fee2e2; color: #991b1b; }
+.budget-alert.success { background: #d1fae5; color: #065f46; }
+
+/* فرم ثبت/ویرایش بودجه */
+.budget-add { background: var(--surface); border: 1px solid var(--line); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+.budget-add h2 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+.budget-fields { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+.budget-fields label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); flex: 1; min-width: 200px; }
+.budget-fields select, .budget-fields input { padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--text); font-family: inherit; outline: none; }
+
+/* دکمه‌های فرم */
+.budget-form-actions { display: flex; gap: 8px; height: 40px; }
+.budget-fields button { padding: 10px 20px; border-radius: 8px; border: none; background: var(--green); color: white; font-family: inherit; cursor: pointer; font-weight: 600; height: 40px; transition: opacity 0.2s; }
+.budget-fields button:disabled { opacity: 0.6; cursor: not-allowed; }
+.budget-cancel-btn { background: var(--surface-soft) !important; color: var(--text) !important; border: 1px solid var(--line) !important; }
+.budget-cancel-btn:hover { background: var(--line) !important; }
+
+/* لیست بودجه‌ها */
+.budget-list { background: var(--surface); border: 1px solid var(--line); padding: 20px; border-radius: 12px; }
+.budget-list h2 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+.budget-row { border: 1px solid var(--line); border-radius: 10px; padding: 15px; margin-bottom: 12px; background: var(--surface-soft); }
+.budget-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.budget-row-top b { display: block; font-size: 13px; }
+.budget-row-top small { font-size: 11px; color: var(--muted); }
+
+/* دکمه‌های ویرایش و حذف */
+.budget-actions { display: flex; gap: 8px; }
+.budget-actions button { background: transparent; border: none; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.budget-actions .edit-btn { color: var(--gold); }
+.budget-actions .edit-btn:hover { background: rgba(213, 168, 91, 0.1); }
+.budget-actions .delete-btn { color: var(--red); }
+.budget-actions .delete-btn:hover { background: rgba(215, 110, 110, 0.1); }
+
+/* نوار پیشرفت */
+.budget-track { height: 10px; background: var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+.budget-track i { display: block; height: 100%; border-radius: 10px; background: var(--green); transition: width 0.3s; }
+.budget-track i.near { background: #f59e0b; }
+.budget-track i.over { background: var(--red); }
+
+/* فوتر کارت بودجه */
+.budget-row-footer { display: flex; justify-content: space-between; align-items: center; }
+.budget-row-footer small { font-size: 11px; color: var(--muted); }
+.budget-row-footer small.near-text { color: #d97706; font-weight: 600; }
+.budget-row-footer small.over-text { color: var(--red); font-weight: 600; }
+.budget-warning, .budget-near { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
+.budget-warning { color: var(--red); }
+.budget-near { color: #d97706; }
+.budget-empty { text-align: center; color: var(--muted); padding: 20px; font-size: 13px; }
+
+@media (max-width: 768px) {
+  .budget-kpis { grid-template-columns: 1fr; }
+  .budget-period { flex-direction: column; gap: 15px; align-items: flex-start; }
+  .budget-row-top { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .budget-actions { width: 100%; justify-content: flex-end; }
+}
