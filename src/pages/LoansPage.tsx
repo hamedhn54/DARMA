@@ -34,7 +34,7 @@ export default function LoansPage() {
   const [error, setError] = useState(""); const [success, setSuccess] = useState(""); const [busy, setBusy] = useState(false);
   const refresh = useCallback(async () => { const data = await getLoanAndCreditData(); setLoans(data.loans); setPurchases(data.purchases); setInstallments(data.installments); setAccounts(data.accounts); setCashId(v => v || data.accounts[0]?.id || ""); }, []);
   useEffect(() => { void refresh(); }, [refresh]);
-  const pending = useMemo(() => installments.filter(x => x.status === "pending"), [installments]);
+  const pending = useMemo(() => installments.filter(x => x.status === "pending" && x.ownerType === (tab === "loans" ? "loan" : "credit")), [installments, tab]);
   const paidTotal = (ownerType: "loan" | "credit", ownerId: string) => installments.filter(x => x.ownerType === ownerType && x.ownerId === ownerId).reduce((s, x) => s + (x.paidAmount ?? (x.status === "paid" ? x.amount : 0)), 0);
   const submit = async () => {
     setError(""); setSuccess(""); setBusy(true);
