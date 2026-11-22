@@ -1,190 +1,276 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, Trash2, Target, Copy, AlertTriangle, CheckCircle2, Pencil } from "lucide-react";
-import { format } from "date-fns-jalali"; // اضافه شد برای دریافت تاریخ شمسی
-import { definitionsDb, type DefinitionRecord } from "../database/definitionsDb";
-import { copyBudgetsFromPreviousMonth, deleteBudget, getBudgets, saveBudget, type BudgetView } from "../services/budgetService";
-import "./BudgetPage.css";
+import { Plus, Target, Trash2, Pencil, RefreshCw, CheckCircle2, X, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { format, parse, isValid } from "date-fns-jalali";
+import { getGoals, saveGoal, deleteGoal, addFundsToGoal, withdrawFundsFromGoal } from "../services/goalService";
+import { definitionsDb, type GoalRecord, type DefinitionRecord } from "../database/definitionsDb";
+import AmountInput from "../components/AmountInput";
+import JalaliDateField from "../components/JalaliDateField";
+import "./GoalsPage.css";
 
 const money = (n: number) => new Intl.NumberFormat("fa-IR").format(n);
-const digits = (v: string) => v.replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^0-9]/g, "");
-const formatted = (v: string) => { 
-  const n = Number(digits(v)); 
-  return n ? new Intl.NumberFormat("fa-IR").format(n) : ""; 
-};
+const toJalali = (d: Date) => format(d, "yyyy/MM/dd");
 
-const MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
-
-export default function BudgetPage() {
-  const [rows, setRows] = useState<BudgetView[]>([]);
-  const [categories, setCategories] = useState<DefinitionRecord[]>([]);
-  const [categoryId, setCategoryId] = useState("");
-  const [amount, setAmount] = useState("");
-  
-  // دریافت سال و ماه شمسی جاری به صورت خودکار
-  const currentYear = Number(format(new Date(), "yyyy"));
-  const currentMonth = format(new Date(), "MM");
-
-  const [year, setYear] = useState(currentYear); 
-  const [month, setMonth] = useState(currentMonth); 
-  const period = `${year}-${month}`; 
-  
-  // ساخت لیست سال‌ها بر اساس سال جاری شمسی
-  const YEARS = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
-
+export default function GoalsPage() {
+  const [goals, setGoals] = useState<GoalRecord[]>([]);
+  const [accounts, setAccounts] = useState<DefinitionRecord[]>([]);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [busy, setBusy] = useState(false);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [targetAmount, setTargetAmount] = useState("");
+  const [deadline, setDeadline] = useState(new Date());
+  const [note, setNote] = useState("");
+  const [color, setColor] = useState("#059669");
+
+  const [transactionMode, setTransactionMode] = useState<"deposit" | "withdraw">("deposit");
+  const [activeGoal, setActiveGoal] = useState<GoalRecord | null>(null);
+  const [txAmount, setTxAmount] = useState("");
+  const [cashAccountId, setCashAccountId] = useState("");
+
+  const colors = ["#059669", "#0284c7", "#d97706", "#dc2626", "#8b5cf6", "#ec4899"];
 
   const refresh = useCallback(async () => {
-    const [b, d] = await Promise.all([getBudgets(period), definitionsDb.definitions.toArray()]);
-    setRows(b);
-    setCategories(d.filter(x => x.kind === "category" && x.parentId !== null && (x.root === "expenses" || x.root === "income")));
-  }, [period]);
+    const [g, a] = await Promise.all([getGoals(), definitionsDb.definitions.toArray()]);
+    setGoals(g);
+    setAccounts(a.filter(x => ["bank", "cash", "wallet"].includes(x.kind)));
+  }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const total = rows.reduce((s, x) => s + x.amount, 0);
-  const spent = rows.reduce((s, x) => s + x.spent, 0);
-
-  const startEdit = (r: BudgetView) => {
-    setCategoryId(r.definitionId);
-    setAmount(formatted(String(r.amount)));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const resetForm = () => {
+    setEditingId(null); setTitle(""); setTargetAmount(""); setDeadline(new Date()); setNote(""); setColor("#059669"); setError("");
   };
 
-  const cancelEdit = () => {
-    setCategoryId("");
-    setAmount("");
-    setError("");
+  const startEdit = (goal: GoalRecord) => {
+    setEditingId(goal.id); setTitle(goal.title); setTargetAmount(String(goal.targetAmount));
+    const parsed = parse((goal.deadline || toJalali(new Date())).replace(/-/g,"/"), "yyyy/MM/dd", new Date());
+    setDeadline(isValid(parsed) ? parsed : new Date()); setNote(goal.note || ""); setColor(goal.color || "#059669");
+    setShowForm(true); setError(""); setSuccess("");
   };
 
   const submit = async () => {
     setError(""); setSuccess(""); setBusy(true);
     try {
-      await saveBudget(categoryId, Number(digits(amount)), period);
-      setCategoryId(""); setAmount(""); setSuccess("بودجه با موفقیت ثبت/ویرایش شد.");
-      await refresh();
+      const numericTarget = Number(targetAmount.replace(/[^0-9]/g, ""));
+      if (!title.trim()) throw new Error("عنوان هدف را وارد کنید.");
+      if (!numericTarget || numericTarget <= 0) throw new Error("مبلغ هدف معتبر نیست.");
+      
+      const input = {
+        title: title.trim(),
+        targetAmount: numericTarget,
+        savedAmount: editingId ? (goals.find(g => g.id === editingId)?.savedAmount || 0) : 0,
+        deadline: toJalali(deadline),
+        color,
+        note: note.trim()
+      };
+      
+      await saveGoal(input, editingId || undefined);
+      setSuccess(editingId ? "هدف مالی ویرایش شد." : "هدف مالی جدید ثبت شد.");
+      setShowForm(false); resetForm(); await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ثبت بودجه انجام نشد.");
+      setError(e instanceof Error ? e.message : "خطا در ثبت هدف.");
     } finally { setBusy(false); }
   };
 
-  const handleCopy = async () => {
-    if (!window.confirm(`آیا از بودجه‌های ماه قبل برای ${MONTHS[Number(month)-1]} کپی شود؟`)) return;
+  const handleDelete = async (goal: GoalRecord) => {
+    if (!window.confirm(`هدف «${goal.title}» حذف شود؟`)) return;
+    setBusy(true);
+    try {
+      await deleteGoal(goal.id);
+      await refresh();
+    } finally { setBusy(false); }
+  };
+
+  const openTransaction = (goal: GoalRecord, mode: "deposit" | "withdraw") => {
+    setActiveGoal(goal);
+    setTransactionMode(mode);
+    setTxAmount("");
+    setCashAccountId(accounts[0]?.id || "");
+    setError("");
+  };
+
+  const handleTransaction = async () => {
+    if (!activeGoal) return;
     setBusy(true); setError(""); setSuccess("");
     try {
-      const count = await copyBudgetsFromPreviousMonth(period);
-      if (count > 0) setSuccess(`${count} ردیف بودجه از ماه قبل کپی شد.`);
-      else setSuccess("هیچ بودجه جدیدی برای کپی یافت نشد (یا از قبل وجود داشتند).");
+      const numericAmount = Number(txAmount.replace(/[^0-9]/g, ""));
+      if (!numericAmount || numericAmount <= 0) throw new Error("مبلغ معتبر نیست.");
+      if (!cashAccountId) throw new Error("حساب بانکی را انتخاب کنید.");
+      
+      if (transactionMode === "deposit") {
+        await addFundsToGoal(activeGoal.id, numericAmount, cashAccountId);
+        setSuccess("مبلغ با موفقیت به هدف واریز شد.");
+      } else {
+        await withdrawFundsFromGoal(activeGoal.id, numericAmount, cashAccountId);
+        setSuccess("مبلغ با موفقیت از هدف برداشت شد.");
+      }
+      
+      setActiveGoal(null); setTxAmount(""); setCashAccountId("");
       await refresh();
     } catch (e) {
-      setError("کپی بودجه انجام نشد.");
+      setError(e instanceof Error ? e.message : "خطا در انجام عملیات.");
     } finally { setBusy(false); }
   };
 
+  const totalSaved = goals.reduce((s, g) => s + g.savedAmount, 0);
+  const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
+
   return (
-    <main className="budget-page" dir="rtl">
-      <header className="budget-head">
+    <main className="goals-page" dir="rtl">
+      <header className="goals-heading">
         <div>
-          <span>برنامه‌ریزی مالی ماهانه</span>
-          <h1>بودجه‌بندی</h1>
-          <p>بودجه‌ها بر اساس دسته‌بندی تعریف می‌شوند و عملکردشان از تراکنش‌های واقعی دفترکل محاسبه می‌شود.</p>
+          <span>برنامه‌ریزی برای آینده</span>
+          <h1>اهداف مالی و پس‌انداز</h1>
+          <p>برای رویاهای خود هدف تعیین کنید و پیشرفت خود را تماشا کنید.</p>
         </div>
-        <button onClick={() => void refresh()} disabled={busy}><RefreshCw size={16} /> به‌روزرسانی</button>
+        <div className="goals-actions">
+          <button onClick={() => void refresh()} disabled={busy}><RefreshCw size={16} /> به‌روزرسانی</button>
+          <button className="goals-primary" onClick={() => { resetForm(); setShowForm(v => !v); }}>
+            <Plus size={16} /> هدف جدید
+          </button>
+        </div>
       </header>
 
-      <section className="budget-period">
-        <div className="budget-period-select">
-          <label>ماه:</label>
-          <select value={month} onChange={e => setMonth(e.target.value)}>
-            {MONTHS.map((m, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
-          </select>
-          <select value={year} onChange={e => setYear(Number(e.target.value))}>
-            {YEARS.map(y => <option key={y} value={y}>{y.toString().replace("140", "۱۴۰")}</option>)}
-          </select>
-        </div>
-        <button className="budget-copy-btn" onClick={() => void handleCopy()} disabled={busy}>
-          <Copy size={16} /> کپی از ماه قبل
-        </button>
+      <section className="goals-summary">
+        <article><span>مجموع پس‌انداز شده</span><b>{money(totalSaved)} ریال</b></article>
+        <article><span>مجموع مبلغ اهداف</span><b>{money(totalTarget)} ریال</b></article>
+        <article><span>درصد پیشرفت کلی</span><b>{totalTarget ? Math.round((totalSaved / totalTarget) * 100) : 0}٪</b></article>
       </section>
 
-      <section className="budget-kpis">
-        <article><span>کل بودجه ماه</span><b>{money(total)} ریال</b></article>
-        <article><span>هزینه ثبت‌شده در دسته‌های بودجه‌دار</span><b>{money(spent)} ریال</b></article>
-        <article><span>مانده بودجه</span><b>{money(total - spent)} ریال</b></article>
-      </section>
+      {error && <div className="goals-alert error">{error}</div>}
+      {success && <div className="goals-alert success"><CheckCircle2 size={16} /> {success}</div>}
 
-      {error && <div className="budget-alert error">{error}</div>}
-      {success && <div className="budget-alert success"><CheckCircle2 size={16}/> {success}</div>}
-
-      <section className="budget-add">
-        <h2><Plus size={18} /> تعریف یا اصلاح بودجه</h2>
-        <div className="budget-fields">
-          <label>دسته‌بندی
-            <select value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-              <option value="">انتخاب دسته‌بندی</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.root === "income" ? "درآمد" : "هزینه"} · {c.name}</option>)}
-            </select>
-          </label>
-          <label>مبلغ بودجه (ریال)
-            <input value={amount} inputMode="numeric" onChange={e => setAmount(formatted(e.target.value))} placeholder="مثلاً ۵۰,۰۰۰,۰۰۰" />
-          </label>
-          <div className="budget-form-actions">
-            <button disabled={busy || !categoryId || !digits(amount)} onClick={() => void submit()}>
-              {busy ? "در حال ذخیره..." : "ذخیره بودجه"}
-            </button>
-            {(categoryId || amount) && (
-              <button className="budget-cancel-btn" onClick={cancelEdit}>انصراف</button>
-            )}
+      {showForm && (
+        <div className="goals-form-card">
+          <h2>{editingId ? "ویرایش هدف" : "تعریف هدف جدید"}</h2>
+          <div className="goals-form-grid">
+            <label>عنوان هدف
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="مثلاً خرید ماشین، سفر به ژاپن..." />
+            </label>
+            <label>مبلغ هدف (ریال)
+              <AmountInput value={targetAmount} onChange={setTargetAmount} placeholder="مبلغ هدف" />
+            </label>
+            <label>تاریخ سررسید هدف
+              <JalaliDateField value={deadline} onChange={setDeadline} label="" />
+            </label>
+            <label>رنگ اختصاصی
+              <div className="color-picker">
+                {colors.map(c => (
+                  <button key={c} type="button" style={{ background: c, outline: color === c ? "2px solid var(--text)" : "none" }} onClick={() => setColor(c)} />
+                ))}
+              </div>
+            </label>
+            <label className="wide">توضیحات (اختیاری)
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder="یادداشت..." />
+            </label>
+          </div>
+          <div className="goals-form-actions">
+            <button className="goals-primary" disabled={busy} onClick={() => void submit()}>{busy ? "در حال ذخیره..." : "ذخیره هدف"}</button>
+            <button className="goals-secondary" onClick={() => { setShowForm(false); resetForm(); }}>انصراف</button>
           </div>
         </div>
-      </section>
+      )}
 
-      <section className="budget-list">
-        <h2><Target size={18} /> بودجه‌های {MONTHS[Number(month)-1]} {year.toString().replace("140", "۱۴۰")}</h2>
-        {rows.length === 0 ? (
-          <p className="budget-empty">برای این ماه بودجه‌ای ثبت نشده است.</p>
-        ) : (
-          rows.map(r => {
-            const isOver = r.percent > 100;
-            const isNear = r.percent >= 80 && r.percent <= 100;
-            return (
-              <article className="budget-row" key={r.id}>
-                <div className="budget-row-top">
-                  <div>
-                    <b>{r.definition.name}</b>
-                    <small>{r.definition.root === "income" ? "بودجه درآمد" : "بودجه هزینه"}</small>
-                  </div>
-                  <div>
-                    <b>{money(r.spent)} / {money(r.amount)} ریال</b>
-                    <small style={{ color: isOver ? "var(--red)" : "var(--muted)" }}>
-                      {isOver ? "عبور از سقف بودجه!" : `مانده: ${money(r.remaining)} ریال`}
-                    </small>
-                  </div>
-                  <div className="budget-actions">
-                    <button title="ویرایش بودجه" className="edit-btn" onClick={() => startEdit(r)}>
-                      <Pencil size={16} />
-                    </button>
-                    <button title="حذف بودجه" className="delete-btn" onClick={async () => {
-                      if (window.confirm("این بودجه حذف شود؟")) { await deleteBudget(r.id); await refresh(); }
-                    }}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+      <div className="goals-grid">
+        {goals.length === 0 ? (
+          <div className="goals-empty">
+            <Target size={40} />
+            <h2>هنوز هدفی تعیین نکرده‌اید</h2>
+            <p>اولین قدم برای رسیدن به رویاها، تعیین یک هدف است.</p>
+          </div>
+        ) : goals.map(goal => {
+          const percent = goal.targetAmount ? Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100)) : 0;
+          const isCompleted = percent >= 100;
+          return (
+            <article className="goal-card" key={goal.id} style={{ borderTop: `4px solid ${goal.color}` }}>
+              <div className="goal-card-header">
+                <div>
+                  <h3>{goal.title}</h3>
+                  <small>سررسید: {goal.deadline}</small>
                 </div>
-                <div className="budget-track">
-                  <i className={isOver ? "over" : isNear ? "near" : ""} style={{ width: `${Math.min(100, r.percent)}%` }} />
+                <div className="goal-card-actions">
+                  <button title="ویرایش" onClick={() => startEdit(goal)}><Pencil size={15}/></button>
+                  <button title="حذف" onClick={() => void handleDelete(goal)}><Trash2 size={15}/></button>
                 </div>
-                <div className="budget-row-footer">
-                  <small className={isOver ? "over-text" : isNear ? "near-text" : ""}>{money(r.percent)}٪ مصرف‌شده</small>
-                  {isOver && <span className="budget-warning"><AlertTriangle size={14}/> بیش از بودجه</span>}
-                  {isNear && <span className="budget-near"><AlertTriangle size={14}/> نزدیک به سقف</span>}
+              </div>
+
+              <div className="goal-progress">
+                <div className="goal-progress-bar">
+                  <div className="goal-progress-fill" style={{ width: `${percent}%`, background: goal.color }} />
                 </div>
-              </article>
-            );
-          })
-        )}
-      </section>
+                <span>{percent}٪</span>
+              </div>
+
+              <div className="goal-amounts">
+                <div><span>پس‌انداز شده</span><b>{money(goal.savedAmount)} ریال</b></div>
+                <div><span>هدف</span><b>{money(goal.targetAmount)} ریال</b></div>
+              </div>
+
+              {goal.note && <p className="goal-note">{goal.note}</p>}
+
+              {/* دکمه‌های جدید و زیبا */}
+              <div className="goal-actions-row">
+                <button
+                  className="goal-btn deposit-btn"
+                  onClick={() => openTransaction(goal, "deposit")}
+                  disabled={isCompleted}
+                  style={{ background: isCompleted ? "var(--surface-soft)" : goal.color, color: isCompleted ? "var(--muted)" : "#fff" }}
+                >
+                  {isCompleted ? <><CheckCircle2 size={16}/> تکمیل شده</> : <><ArrowDownLeft size={16}/> واریز وجه</>}
+                </button>
+                
+                <button
+                  className="goal-btn withdraw-btn"
+                  onClick={() => openTransaction(goal, "withdraw")}
+                  disabled={goal.savedAmount === 0}
+                >
+                  <ArrowUpRight size={16}/> برداشت
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {activeGoal && (
+        <div className="goals-modal-backdrop" onClick={() => setActiveGoal(null)}>
+          <div className="goals-modal" onClick={e => e.stopPropagation()}>
+            <header>
+              <h2>{transactionMode === "deposit" ? "واریز به هدف" : "برداشت از هدف"}: {activeGoal.title}</h2>
+              <button onClick={() => setActiveGoal(null)}><X size={20}/></button>
+            </header>
+            <p>
+              {transactionMode === "deposit" 
+                ? "مبلغی که می‌خواهید از حساب بانکی به این هدف منتقل کنید را وارد نمایید." 
+                : `مبلغی که می‌خواهید از این هدف به حساب بانکی برگردانید را وارد نمایید. (حداکثر: ${money(activeGoal.savedAmount)} ریال)`}
+            </p>
+            
+            <label className="goals-form-grid" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '15px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                {transactionMode === "deposit" ? "حساب بانکی مبدأ:" : "حساب بانکی مقصد:"}
+              </span>
+              <select value={cashAccountId} onChange={e => setCashAccountId(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--surface-soft)', color: 'var(--text)', fontFamily: 'inherit', outline: 'none' }}>
+                <option value="">انتخاب حساب...</option>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+
+            <AmountInput value={txAmount} onChange={setTxAmount} placeholder="مبلغ..." />
+            
+            {accounts.length === 0 && <p style={{ color: 'var(--red)', fontSize: '11px', marginTop: '10px' }}>برای این عملیات، ابتدا در بخش تعاریف یک حساب بانکی بسازید.</p>}
+
+            <div className="goals-modal-actions">
+              <button className={`goals-primary ${transactionMode === "withdraw" ? "modal-withdraw-btn" : ""}`} disabled={busy || accounts.length === 0} onClick={() => void handleTransaction()}>
+                {busy ? "..." : (transactionMode === "deposit" ? "تأیید و واریز" : "تأیید و برداشت")}
+              </button>
+              <button className="goals-secondary" onClick={() => setActiveGoal(null)}>انصراف</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

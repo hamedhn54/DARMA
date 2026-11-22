@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, RefreshCw, Search, Pencil,
 import { definitionsDb, type DefinitionRecord, type JournalEntry } from "../database/definitionsDb";
 import { deleteTestFinancialTransaction, getFinancialTransactions, postFinancialTransaction, updateFinancialTransaction, voidFinancialTransaction, type FinancialTransactionType } from "../services/transactionService";
 import JalaliDateField from "../components/JalaliDateField";
+import AmountInput from "../components/AmountInput"; // اضافه شد
 import { getLoanAndCreditData, payInstallmentPartial, type InstallmentRecord } from "../services/loansCreditService";
 import "./TransactionsPage.css";
 
@@ -81,21 +82,13 @@ export default function TransactionsPage({ initialInstallmentId, onInitialInstal
     setFee(entry.fee ? new Intl.NumberFormat("fa-IR").format(entry.fee) : ""); 
     setFiles([]); 
     setIsTest(!!entry.isTest);
-    setSelectedInstallmentId(""); // پاک کردن اتصال قسط در زمان ویرایش
+    setSelectedInstallmentId("");
     setError("");
     window.scrollTo({top:0,behavior:"smooth"});
   };
   
   const cancelEdit = () => { 
-    setEditingId(null); 
-    setAmount(""); 
-    setFee(""); 
-    setFiles([]); 
-    setDescription(""); 
-    setCategoryId(""); 
-    setIsTest(false); 
-    setSelectedInstallmentId("");
-    setError("");
+    setEditingId(null); setAmount(""); setFee(""); setFiles([]); setDescription(""); setCategoryId(""); setIsTest(false); setSelectedInstallmentId(""); setError("");
   };
   
   const openDetails = async (entry: JournalEntry) => { 
@@ -163,13 +156,25 @@ export default function TransactionsPage({ initialInstallmentId, onInitialInstal
     <section className="tx-layout">
       <article className="tx-panel tx-form-panel"><div className="tx-title"><h2>{editingId?"ویرایش تراکنش":"ثبت تراکنش جدید"}</h2><span>سند حسابداری خودکار</span></div>
         <div className="tx-type-tabs">{(["income","expense","transfer"] as FinancialTransactionType[]).map(t => <button key={t} className={type===t?"active":""} onClick={()=>{setType(t); setCategoryId(""); if(t!=="expense")setSelectedInstallmentId("");}}>{t==="income"?<ArrowDownLeft size={17}/>:t==="expense"?<ArrowUpRight size={17}/>:<ArrowLeftRight size={17}/>} {labels[t]}</button>)}</div>
-        <div className="tx-fields"><label>مبلغ (ریال)<input inputMode="numeric" value={amount} onChange={e=>{const raw=latinDigits(e.target.value).replace(/[^0-9]/g,"");setAmount(raw?new Intl.NumberFormat("fa-IR").format(Number(raw)):"")}} placeholder="مثلاً ۱۲٬۵۰۰٬۰۰۰"/></label>
+        <div className="tx-fields">
+          
+          {/* استفاده از AmountInput برای مبلغ اصلی */}
+          <label>مبلغ (ریال)
+            <AmountInput value={amount} onChange={setAmount} placeholder="مثلاً ۱۲,۵۰۰,۰۰۰" />
+          </label>
+
           <JalaliDateField value={date} onChange={setDate}/>
+          
           {type !== "transfer" && <label>حساب {type === "income" ? "واریز به" : "پرداخت از"}<select value={accountId} onChange={e=>setAccountId(e.target.value)}><option value="">انتخاب حساب</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
           {type === "transfer" && <><label>حساب مبدأ<select value={fromAccountId} onChange={e=>setFromAccountId(e.target.value)}><option value="">انتخاب مبدأ</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label>حساب مقصد<select value={toAccountId} onChange={e=>setToAccountId(e.target.value)}><option value="">انتخاب مقصد</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label></>}
           {type !== "transfer" && <label>دسته‌بندی<button type="button" className="tx-category-picker" onClick={()=>{setCategoryParent(null);setCategorySearch("");setCategoryModal(true)}}>{categories.find(c=>c.id===categoryId)?.name || "انتخاب دسته‌بندی"}</button></label>}
           {type === "expense" && <label className="tx-wide">اتصال به قسط وام<button type="button" className="tx-category-picker" onClick={()=>{setLoanPickerId(null);setLoanPickerOpen(true)}}>{selectedInstallmentId?`قسط ${pendingInstallments.find(x=>x.id===selectedInstallmentId)?.installmentNo} انتخاب شده`:"انتخاب وام و قسط (اختیاری)"}</button>{selectedInstallmentId&&<button type="button" className="tx-cancel" onClick={()=>{setSelectedInstallmentId("");setAmount("")}}>حذف اتصال قسط</button>}</label>}
-          <label>کارمزد (ریال)<input inputMode="numeric" value={fee} onChange={e=>{const raw=latinDigits(e.target.value).replace(/[^0-9]/g,"");setFee(raw?new Intl.NumberFormat("fa-IR").format(Number(raw)):"")}} placeholder="در صورت وجود"/></label>
+          
+          {/* استفاده از AmountInput برای کارمزد */}
+          <label>کارمزد (ریال)
+            <AmountInput value={fee} onChange={setFee} placeholder="در صورت وجود" />
+          </label>
+
           <label className="tx-wide">پیوست رسید یا فایل<input type="file" multiple accept="image/*,.pdf,.jpg,.jpeg,.png" onChange={e=>setFiles(Array.from(e.target.files||[]))}/>{files.length>0&&<small>{files.map(f=>f.name).join("، ")}</small>}</label>
           <label className="tx-wide">شرح تراکنش<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="شرح مختصر و قابل پیگیری"/></label>
         </div>

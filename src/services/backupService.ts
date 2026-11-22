@@ -1,3 +1,4 @@
+
 import { definitionsDb } from "../database/definitionsDb";
 
 const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve) => {
@@ -7,11 +8,13 @@ const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve) => {
 });
 
 const base64ToBlob = (base64: string, mimeType: string): Blob => {
-  const byteCharacters = atob(base64.split(',')[1]);
+  const byteCharacters = atob(base64.split(",")[1]);
   const byteNumbers = new Array(byteCharacters.length);
+
   for (let i = 0; i < byteCharacters.length; i++) {
     byteNumbers[i] = byteCharacters.charCodeAt(i);
   }
+
   const byteArray = new Uint8Array(byteNumbers);
   return new Blob([byteArray], { type: mimeType });
 };
@@ -30,19 +33,23 @@ export async function exportDatabaseToFile(): Promise<void> {
   data.budgets = await definitionsDb.budgets.toArray();
 
   const attachments = await definitionsDb.attachments.toArray();
-  data.attachments = await Promise.all(attachments.map(async (file) => {
-    const base64 = await blobToBase64(file.blob);
-    return { ...file, blob: base64 };
-  }));
+
+  data.attachments = await Promise.all(
+    attachments.map(async (file) => {
+      const base64 = await blobToBase64(file.blob);
+      return { ...file, blob: base64 };
+    })
+  );
 
   const jsonString = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonString], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  
+
   const a = document.createElement("a");
   a.href = url;
   a.download = `DARMA-Backup-${new Date().toISOString().split("T")[0]}.json`;
   a.click();
+
   URL.revokeObjectURL(url);
 }
 
@@ -55,15 +62,25 @@ export async function importDatabaseFromFile(file: File): Promise<void> {
   }
 
   if (data.attachments) {
-    data.attachments = await Promise.all(data.attachments.map(async (file: any) => {
-      const blob = await base64ToBlob(file.blob, file.mimeType);
-      return { ...file, blob };
-    }));
+    data.attachments = await Promise.all(
+      data.attachments.map(async (file: any) => {
+        const blob = base64ToBlob(file.blob, file.mimeType);
+        return { ...file, blob };
+      })
+    );
   }
 
-  await definitionsDb.transaction("rw", 
-    definitionsDb.definitions, definitionsDb.journalEntries, definitionsDb.journalLines, 
-    definitionsDb.installments, definitionsDb.creditPurchases, definitionsDb.budgets, definitionsDb.attachments, 
+  await definitionsDb.transaction(
+    "rw",
+    [
+      definitionsDb.definitions,
+      definitionsDb.journalEntries,
+      definitionsDb.journalLines,
+      definitionsDb.installments,
+      definitionsDb.creditPurchases,
+      definitionsDb.budgets,
+      definitionsDb.attachments,
+    ],
     async () => {
       await definitionsDb.definitions.clear();
       await definitionsDb.journalEntries.clear();
@@ -80,7 +97,8 @@ export async function importDatabaseFromFile(file: File): Promise<void> {
       await definitionsDb.creditPurchases.bulkAdd(data.creditPurchases || []);
       await definitionsDb.budgets.bulkAdd(data.budgets || []);
       await definitionsDb.attachments.bulkAdd(data.attachments || []);
-  });
+    }
+  );
 }
 
 export async function cleanupOrphanData(): Promise<string> {
@@ -88,19 +106,39 @@ export async function cleanupOrphanData(): Promise<string> {
   let deletedLines = 0;
   let deletedAttachments = 0;
 
-  await definitionsDb.transaction("rw", 
-    definitionsDb.installments, definitionsDb.journalEntries, definitionsDb.journalLines, 
-    definitionsDb.definitions, definitionsDb.creditPurchases, definitionsDb.attachments, 
+  await definitionsDb.transaction(
+    "rw",
+    [
+      definitionsDb.installments,
+      definitionsDb.journalEntries,
+      definitionsDb.journalLines,
+      definitionsDb.definitions,
+      definitionsDb.creditPurchases,
+      definitionsDb.attachments,
+    ],
     async () => {
       // ۱. پاک‌سازی اقساط یتیم
       const installments = await definitionsDb.installments.toArray();
-      const validLoanIds = new Set((await definitionsDb.definitions.where("kind").equals("loan").toArray()).map(l => l.id));
-      const validPurchaseIds = new Set((await definitionsDb.creditPurchases.toArray()).map(p => p.id));
-      
-      const orphanInstallments = installments.filter(inst => 
-        (inst.ownerType === "loan" && !validLoanIds.has(inst.ownerId)) ||
-        (inst.ownerType === "credit" && !validPurchaseIds.has(inst.ownerId))
+
+      const validLoanIds = new Set(
+        (
+          await definitionsDb.definitions
+            .where("kind")
+            .equals("loan")
+            .toArray()
+        ).map((l) => l.id)
       );
+
+      const validPurchaseIds = new Set(
+        (await definitionsDb.creditPurchases.toArray()).map((p) => p.id)
+      );
+
+      const orphanInstallments = installments.filter(
+        (inst) =>
+          (inst.ownerType === "loan" && !validLoanIds.has(inst.ownerId)) ||
+          (inst.ownerType === "credit" && !validPurchaseIds.has(inst.ownerId))
+      );
+
       for (const inst of orphanInstallments) {
         await definitionsDb.installments.delete(inst.id);
         deletedInstallments++;
@@ -108,8 +146,15 @@ export async function cleanupOrphanData(): Promise<string> {
 
       // ۲. پاک‌سازی خطوط سند یتیم
       const lines = await definitionsDb.journalLines.toArray();
-      const validEntryIds = new Set((await definitionsDb.journalEntries.toArray()).map(e => e.id));
-      const orphanLines = lines.filter(l => !validEntryIds.has(l.entryId));
+
+      const validEntryIds = new Set(
+        (await definitionsDb.journalEntries.toArray()).map((e) => e.id)
+      );
+
+      const orphanLines = lines.filter(
+        (line) => !validEntryIds.has(line.entryId)
+      );
+
       for (const line of orphanLines) {
         await definitionsDb.journalLines.delete(line.id);
         deletedLines++;
@@ -117,20 +162,33 @@ export async function cleanupOrphanData(): Promise<string> {
 
       // ۳. پاک‌سازی پیوست‌های یتیم
       const attachments = await definitionsDb.attachments.toArray();
-      const orphanAttachments = attachments.filter(a => !validEntryIds.has(a.transactionId));
-      for (const att of orphanAttachments) {
-        await definitionsDb.attachments.delete(att.id);
+
+      const orphanAttachments = attachments.filter(
+        (attachment) => !validEntryIds.has(attachment.transactionId)
+      );
+
+      for (const attachment of orphanAttachments) {
+        await definitionsDb.attachments.delete(attachment.id);
         deletedAttachments++;
       }
-  });
-  
+    }
+  );
+
   return `${deletedInstallments} قسط یتیم، ${deletedLines} خط سند و ${deletedAttachments} پیوست پاک‌سازی شد.`;
 }
 
 export async function resetAllData(): Promise<void> {
-  await definitionsDb.transaction("rw", 
-    definitionsDb.definitions, definitionsDb.journalEntries, definitionsDb.journalLines, 
-    definitionsDb.installments, definitionsDb.creditPurchases, definitionsDb.budgets, definitionsDb.attachments, 
+  await definitionsDb.transaction(
+    "rw",
+    [
+      definitionsDb.definitions,
+      definitionsDb.journalEntries,
+      definitionsDb.journalLines,
+      definitionsDb.installments,
+      definitionsDb.creditPurchases,
+      definitionsDb.budgets,
+      definitionsDb.attachments,
+    ],
     async () => {
       await definitionsDb.definitions.clear();
       await definitionsDb.journalEntries.clear();
@@ -139,5 +197,6 @@ export async function resetAllData(): Promise<void> {
       await definitionsDb.creditPurchases.clear();
       await definitionsDb.budgets.clear();
       await definitionsDb.attachments.clear();
-    });
+    }
+  );
 }

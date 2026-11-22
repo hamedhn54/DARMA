@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DARMA</string>
+    <string name="title_activity_main">DARMA</string>
+    <string name="package_name">com.darma.app</string>
+    <string name="custom_url_scheme">com.darma.app</string>
+</resources>

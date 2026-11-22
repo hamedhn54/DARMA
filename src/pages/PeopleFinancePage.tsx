@@ -3,6 +3,7 @@ import { addMonths, eachDayOfInterval, endOfMonth, format, getDay, isValid, pars
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, FileText, HandCoins, Pencil, RefreshCw, Search, Trash2, UserRound, Wallet, X, Ban, Info } from "lucide-react";
 import { definitionsDb, type DefinitionRecord, type JournalEntry, type JournalLine } from "../database/definitionsDb";
 import { deleteTestPersonOperation, getCashBalances, getPersonBalances, getPersonHistory, postPersonOperation, updatePersonOperation, voidPersonOperation, type PersonBalance, type PersonOperation, type PersonJournalEntry } from "../services/personLedgerService";
+import AmountInput from "../components/AmountInput"; // اضافه شد
 import "./PeopleFinancePage.css";
 
 const fmt = (n: number) => new Intl.NumberFormat("fa-IR").format(Math.abs(n)) + " ریال";
@@ -86,7 +87,7 @@ export default function PeopleFinancePage() {
   const resetForm = () => { setEditingId(null); setAmount(""); setDescription(""); setType("lend"); setCashAccountId(""); setDate(new Date()); setIsTest(false); setError(""); };
   
   const startEdit = (entry: PersonJournalEntry) => {
-    setEditingId(entry.id); setSelectedId(entry.personId); setType(entry.type); setAmount(numberText(entry.amount));
+    setEditingId(entry.id); setSelectedId(entry.personId); setType(entry.type); setAmount(String(entry.amount));
     setCashAccountId(entry.cashAccountId || ""); setDate(new Date(entry.date)); setDescription(entry.description); setIsTest(!!entry.isTest); setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -152,7 +153,6 @@ export default function PeopleFinancePage() {
           </div>
           <div className="pf-panel pf-operation"><div className="pf-panel-title"><div><h2>{editingId ? "ویرایش سند مالی" : "ثبت عملیات مالی"}</h2><small>{editingId ? "تغییرات روی همان سند ذخیره می‌شود." : "هر عملیات به‌صورت سند دوطرفه ذخیره می‌شود."}</small></div><HandCoins size={20}/></div>
             
-            {/* نمایش موجودی فعلی شخص بالای فرم */}
             <div className="pf-form-hint" style={{ background: 'var(--surface-soft)', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted)' }}>
               <Info size={16} />
               وضعیت فعلی {selected.name}: {balance.net >= 0 ? "طلبکار" : "بدهکار"} به مبلغ {fmt(balance.net)}
@@ -160,7 +160,11 @@ export default function PeopleFinancePage() {
 
             <div className="pf-form">
               <label>نوع عملیات<select value={type} onChange={e => setType(e.target.value as PersonOperation)}>{Object.entries(opLabels).filter(([v]) => ["lend", "borrow", "collect", "repay", "offset"].includes(v)).map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-              <label>مبلغ (ریال)<input inputMode="numeric" value={amount} onChange={e => { const n = parseAmount(e.target.value); setAmount(n ? numberText(n) : ""); }} placeholder="مبلغ را وارد کن"/></label>
+              
+              <label>مبلغ (ریال)
+                <AmountInput value={amount} onChange={setAmount} placeholder="مبلغ را وارد کن" />
+              </label>
+
               {type !== "offset" && <label>حساب بانکی / صندوق<select value={cashAccountId} onChange={e => setCashAccountId(e.target.value)}><option value="">انتخاب حساب</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
               <JalaliDateField label="تاریخ شمسی" value={date} onChange={setDate}/>
               <label className="pf-wide">شرح عملیات<input value={description} onChange={e => setDescription(e.target.value)} placeholder={opSigns[type]}/></label>

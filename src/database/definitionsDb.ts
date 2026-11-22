@@ -1,42 +1,7 @@
 import Dexie, { type Table } from "dexie";
 
 export type RootGroup = "assets" | "liabilities" | "income" | "expenses";
-export type DefinitionKind = "category" | "account" | "bank" | "cash" | "wallet" | "person" | "loan";
-export type LoanTiming = "existing" | "current";
-
-export interface JournalEntry {
-  id: string;
-  date: string;
-  type: "lend" | "borrow" | "collect" | "repay" | "offset" | "income" | "expense" | "transfer" | "loan_receive" | "loan_payment" | "credit_purchase" | "credit_payment";
-  personId?: string;
-  amount: number;
-  fee?: number;
-  description: string;
-  cashAccountId?: string;
-  fromAccountId?: string;
-  toAccountId?: string;
-  categoryId?: string;
-  createdAt: string;
-  updatedAt?: string;
-  status?: "active" | "void";
-  isTest?: boolean;
-  voidReason?: string;
-  docNo?: number;
-  loanId?: string;
-  purchaseId?: string;
-  platform?: string;
-  installmentId?: string;
-}
-
-export interface JournalLine {
-  id: string;
-  entryId: string;
-  accountCode: string;
-  debit: number;
-  credit: number;
-  personId?: string;
-  cashAccountId?: string;
-}
+export type DefinitionKind = "category" | "account" | "bank" | "cash" | "wallet" | "person" | "loan" | "credit_card" | "platform";
 
 export interface DefinitionRecord {
   id: string;
@@ -50,44 +15,121 @@ export interface DefinitionRecord {
   cardNumber?: string;
   accountNumber?: string;
   iban?: string;
-  initialBalance?: number; // stored in rial
-  personRole?: "creditor" | "debtor" | "both";
-  loanTiming?: LoanTiming;
-  principal?: number; // rial
-  installmentAmount?: number; // rial
+  initialBalance?: number;
+  initialBalanceDate?: string;
+  loanTiming?: "existing" | "current";
+  principal?: number;
+  installmentAmount?: number;
   totalInstallments?: number;
   paidInstallments?: number;
-  firstDueDate?: string; // Jalali text, e.g. 1405/01/01
+  firstDueDate?: string;
   affectsCashOnCreate?: boolean;
   note?: string;
+  personRole?: "creditor" | "debtor" | "both";
+}
+
+export interface JournalEntry {
+  id: string;
+  docNo?: number;
+  date: string;
+  type: string; // "income" | "expense" | "transfer" | "loan_receive" | "loan_payment" | "credit_purchase" | "credit_payment" | "lend" | "borrow" | "collect" | "repay" | "offset"
+  amount: number;
+  fee?: number;
+  description: string;
+  cashAccountId?: string;
+  fromAccountId?: string;
+  toAccountId?: string;
+  categoryId?: string;
+  personId?: string;
+  loanId?: string;
+  purchaseId?: string;
+  platform?: string;
+  installmentId?: string;
+  createdAt: string;
+  updatedAt: string;
+  status: "active" | "void";
+  voidReason?: string;
+  isTest?: boolean;
+}
+
+export interface JournalLine {
+  id: string;
+  entryId: string;
+  accountCode: string;
+  debit: number;
+  credit: number;
+  personId?: string;
+  cashAccountId?: string;
+}
+
+export interface BudgetRecord {
+  id: string;
+  period: string;
+  definitionId: string;
+  amount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttachmentRecord {
+  id: string;
+  transactionId: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  blob: Blob;
+  createdAt: string;
 }
 
 export interface InstallmentRecord {
-  id: string; ownerType: "loan" | "credit"; ownerId: string; installmentNo: number;
-  dueDate: string; amount: number; paidAmount?: number; status: "pending" | "paid"; paidAt?: string; journalEntryId?: string;
+  id: string;
+  ownerType: "loan" | "credit";
+  ownerId: string;
+  installmentNo: number;
+  dueDate: string;
+  amount: number;
+  paidAmount?: number;
+  status: "pending" | "paid";
+  paidAt?: string;
+  journalEntryId?: string;
 }
+
 export interface CreditPurchaseRecord {
-  id: string; platform: string; title: string; amount: number; installmentCount: number;
-  firstDueDate: string; note?: string; createdAt: string;
+  id: string;
+  platform: string;
+  title: string;
+  amount: number;
+  installmentCount: number;
+  firstDueDate: string;
+  note?: string;
+  createdAt: string;
 }
-export interface BudgetRecord {
-  id: string; period: string; definitionId: string; amount: number; createdAt: string; updatedAt: string;
-}
-export interface AttachmentRecord {
-  id: string; transactionId: string; name: string; mimeType: string; size: number; blob: Blob; createdAt: string;
+
+// اینترفیس جدید برای اهداف مالی
+export interface GoalRecord {
+  id: string;
+  title: string;
+  targetAmount: number;
+  savedAmount: number;
+  deadline: string; // Jalali yyyy/MM/dd
+  color: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 class DarmaDefinitionsDB extends Dexie {
-  definitions!: Table<DefinitionRecord, string>;
-  journalEntries!: Table<JournalEntry, string>;
-  journalLines!: Table<JournalLine, string>;
-  installments!: Table<InstallmentRecord, string>;
-  creditPurchases!: Table<CreditPurchaseRecord, string>;
-  budgets!: Table<BudgetRecord, string>;
-  attachments!: Table<AttachmentRecord, string>;
+  definitions!: Table<DefinitionRecord>;
+  journalEntries!: Table<JournalEntry>;
+  journalLines!: Table<JournalLine>;
+  installments!: Table<InstallmentRecord>;
+  creditPurchases!: Table<CreditPurchaseRecord>;
+  budgets!: Table<BudgetRecord>;
+  attachments!: Table<AttachmentRecord>;
+  financialGoals!: Table<GoalRecord>; // جدول جدید
 
   constructor() {
-    super("DarmaDefinitionsDB");
+    super("DARMA_DB");
     this.version(1).stores({
       definitions: "id, root, parentId, kind, name, updatedAt",
     });
@@ -128,6 +170,17 @@ class DarmaDefinitionsDB extends Dexie {
       creditPurchases: "id, platform, title, createdAt",
       budgets: "id, period, definitionId, [period+definitionId]",
       attachments: "id, transactionId, createdAt",
+    });
+    // نسخه ۷ برای اضافه کردن اهداف مالی
+    this.version(7).stores({
+      definitions: "id, root, parentId, kind, name, updatedAt",
+      journalEntries: "id, date, type, personId, cashAccountId, fromAccountId, toAccountId, categoryId, createdAt, status, docNo, loanId, purchaseId, installmentId",
+      journalLines: "id, entryId, accountCode, personId, cashAccountId",
+      installments: "id, ownerType, ownerId, installmentNo, dueDate, status",
+      creditPurchases: "id, platform, title, createdAt",
+      budgets: "id, period, definitionId, [period+definitionId]",
+      attachments: "id, transactionId, createdAt",
+      financialGoals: "id, title, deadline, createdAt",
     });
   }
 }

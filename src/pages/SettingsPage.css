@@ -30,3 +30,6 @@
   border: 1px solid var(--red);
   background: rgba(220, 38, 38, 0.02);
 }
+.settings-card-icon.ai-key { background: #e0e7ff; color: #4338ca; }
+.api-key-input-group { display: flex; gap: 8px; margin-top: 10px; }
+.api-key-input-group input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--text); font-family: inherit; outline: none; }

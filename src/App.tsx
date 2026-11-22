@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Activity, Bell, ChevronDown, ChevronLeft, CircleHelp, FileChartColumn, HandCoins, LayoutDashboard, Menu, MoreHorizontal, Search, Settings2, ShieldCheck, Target, Wallet, X, ArrowLeftRight, AlertTriangle, Info, XCircle } from "lucide-react";
+import { Activity, Bell, ChevronDown, ChevronLeft, CircleHelp, FileChartColumn, HandCoins, LayoutDashboard, Menu, MoreHorizontal, Search, Settings2, ShieldCheck, Target, Wallet, X, ArrowLeftRight, AlertTriangle, Info, XCircle, Bot } from "lucide-react";
 import "./App.css";
 import DefinitionsPage from "./pages/DefinitionsPage";
 import PeopleFinancePage from "./pages/PeopleFinancePage";
@@ -9,6 +9,8 @@ import ReportsPage from "./pages/ReportsPage";
 import LoansPage from "./pages/LoansPage";
 import BudgetPage from "./pages/BudgetPage";
 import SettingsPage from "./pages/SettingsPage";
+import GoalsPage from "./pages/GoalsPage";
+import AIChatPage from "./pages/AIChatPage";
 import { globalSearch, getSystemNotifications, type SearchResult, type SystemNotification } from "./services/searchService";
 
 type Theme = "classic" | "light" | "hybrid";
@@ -19,26 +21,22 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingInstallmentId, setPendingInstallmentId] = useState<string | null>(null);
 
-  // State های جستجو
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // State های اعلان‌ها
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // اعمال رنگ پس‌زمینه به body
   useEffect(() => {
     const bgColors = { classic: "#0f172a", light: "#f8fafc", hybrid: "#f1f5f9" };
     document.body.style.background = bgColors[theme];
     document.body.style.transition = "background 0.3s ease";
   }, [theme]);
 
-  // بستن منوها با کلیک بیرون
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
@@ -48,7 +46,6 @@ function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // جستجوی زنده
   useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults([]); return; }
     const timer = setTimeout(async () => {
@@ -59,7 +56,6 @@ function App() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // دریافت اعلان‌ها در هنگام باز کردن
   const toggleNotifications = async () => {
     if (!notifOpen) {
       const n = await getSystemNotifications();
@@ -78,10 +74,12 @@ function App() {
 
   const nav = [
     { label: "داشبورد", icon: LayoutDashboard },
+    { label: "دستیار هوشمند", icon: Bot },
     { label: "تراکنش‌ها", icon: ArrowLeftRight },
     { label: "تعاریف", icon: Wallet },
     { label: "اشخاص و مطالبات", icon: HandCoins },
     { label: "بودجه‌بندی", icon: Target },
+    { label: "اهداف مالی", icon: Target },
     { label: "وام‌ها و خرید اعتباری", icon: HandCoins },
     { label: "گزارش‌های مالی", icon: FileChartColumn },
   ];
@@ -133,8 +131,6 @@ function App() {
             <div className="breadcrumb">دارما <ChevronLeft size={14} /> <b>{active}</b></div>
           </div>
           <div className="top-actions">
-            
-            {/* بخش جستجو */}
             <div className="search-box" ref={searchRef}>
               <Search size={17} />
               <input 
@@ -159,7 +155,6 @@ function App() {
               )}
             </div>
 
-            {/* بخش اعلان‌ها */}
             <div className="notification-wrap" ref={notifRef}>
               <button className="icon-btn notification" onClick={toggleNotifications} aria-label="اعلان‌ها">
                 <Bell size={19} />
@@ -208,6 +203,8 @@ function App() {
            active === "گزارش‌های مالی" ? <ReportsPage /> :
            active === "وام‌ها و خرید اعتباری" ? <LoansPage /> :
            active === "بودجه‌بندی" ? <BudgetPage /> :
+           active === "اهداف مالی" ? <GoalsPage /> :
+           active === "دستیار هوشمند" ? <AIChatPage /> :
            active === "داشبورد" ? <DashboardPage onNavigate={navigate} /> :
            active === "تنظیمات" ? <SettingsPage /> :
            <main className="db-page" dir="rtl">

@@ -2,6 +2,8 @@ import { format } from "date-fns-jalali";
 import { definitionsDb, type JournalEntry } from "../database/definitionsDb";
 import { buildJournalLines, getNextDocNo } from "../accounting/ledgerEngine";
 
+export type FinancialTransactionType = "income" | "expense" | "transfer";
+
 type DefinitionRecord = any;
 type FinancialTransactionInput = any;
 type LedgerSummary = any;

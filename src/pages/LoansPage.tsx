@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, CircleDollarSign, CreditCard, HandCoins, Plu
 import type { DefinitionRecord } from "../database/definitionsDb";
 import { createCreditPurchase, createLoan, updateLoan, deleteLoan, updateCreditPurchase, deleteCreditPurchase, payInstallmentPartial, getLoanAndCreditData, type CreditPurchaseRecord, type InstallmentRecord } from "../services/loansCreditService";
 import JalaliDateField from "../components/JalaliDateField";
+import AmountInput from "../components/AmountInput"; // اضافه شد
 import { format, parse, isValid } from "date-fns-jalali";
 import "./LoansPage.css";
 
@@ -10,7 +11,6 @@ type Tab = "loans" | "credit";
 const money = (n: number) => `${new Intl.NumberFormat("fa-IR").format(n)} ریال`;
 const digits = (v: string) => v.replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
 const amount = (v: string) => Number(digits(v).replace(/[^0-9]/g, ""));
-const formatted = (v: string) => { const n=amount(v); return n ? new Intl.NumberFormat("fa-IR").format(n) : ""; };
 const toJalali = (d: Date) => format(d, "yyyy/MM/dd");
 
 export default function LoansPage() {
@@ -23,7 +23,7 @@ export default function LoansPage() {
   const [showForm, setShowForm] = useState(false);
   
   const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
-  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null); // اضافه شد
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null); 
   
   const [payingInstallment, setPayingInstallment] = useState<InstallmentRecord | null>(null);
   const [paymentDate, setPaymentDate] = useState(new Date());
@@ -57,7 +57,6 @@ export default function LoansPage() {
   
   useEffect(() => { void refresh(); }, [refresh]);
   
-  // اصلاح باگ اقساط یتیم
   const pending = useMemo(() => {
     if (tab === "loans") {
       const loanIds = new Set(loans.map(l => l.id));
@@ -91,7 +90,7 @@ export default function LoansPage() {
 
   const startEditLoan = (loan: DefinitionRecord) => {
     setTab("loans"); setEditingLoanId(loan.id); setShowForm(true);
-    setName(loan.name); setPrincipal(formatted(String(loan.principal || 0)));
+    setName(loan.name); setPrincipal(String(loan.principal || 0));
     setCount(String(loan.totalInstallments || 1)); setPaidCount(String(loan.paidInstallments || 0));
     const parsed = parse((loan.firstDueDate || toJalali(new Date())).replace(/-/g,"/"), "yyyy/MM/dd", new Date());
     setFirstDue(isValid(parsed) ? parsed : new Date()); setTiming(loan.loanTiming || "current"); setNote(loan.note || "");
@@ -115,7 +114,7 @@ export default function LoansPage() {
   const startEditPurchase = (purchase: CreditPurchaseRecord) => {
     setTab("credit"); setEditingPurchaseId(purchase.id); setShowForm(true);
     setPlatform(purchase.platform); setTitle(purchase.title);
-    setCreditAmount(formatted(String(purchase.amount)));
+    setCreditAmount(String(purchase.amount));
     setCreditCount(String(purchase.installmentCount));
     const parsed = parse((purchase.firstDueDate || toJalali(new Date())).replace(/-/g,"/"), "yyyy/MM/dd", new Date());
     setCreditDue(isValid(parsed) ? parsed : new Date()); setCreditNote(purchase.note || "");
@@ -177,7 +176,11 @@ export default function LoansPage() {
         <h3>{editingLoanId ? "ویرایش اطلاعات وام" : "اطلاعات وام"}</h3>
         <div className="loans-fields">
           <label>عنوان وام<input value={name} onChange={e => setName(e.target.value)} placeholder="مثلاً وام بانک ملت"/></label>
-          <label>مبلغ اصل وام (ریال)<input value={principal} onChange={e => setPrincipal(formatted(e.target.value))} placeholder="مبلغ به ریال" inputMode="numeric"/></label>
+          
+          <label>مبلغ اصل وام (ریال)
+            <AmountInput value={principal} onChange={setPrincipal} placeholder="مبلغ به ریال" />
+          </label>
+
           <label>تعداد اقساط<input value={count} onChange={e => setCount(e.target.value)} inputMode="numeric"/></label>
           <JalaliDateField value={firstDue} onChange={setFirstDue} label="اولین سررسید شمسی"/>
           <label>وضعیت دریافت<select value={timing} onChange={e => setTiming(e.target.value as "existing" | "current")}><option value="current">وام جدید؛ وجه اکنون دریافت می‌شود</option><option value="existing">وام قبلی؛ فقط مانده بدهی ثبت شود</option></select></label>
@@ -191,7 +194,11 @@ export default function LoansPage() {
         <div className="loans-fields">
           <label>پلتفرم / اعتباردهنده<input value={platform} onChange={e => setPlatform(e.target.value)} placeholder="تارا، دیجی‌پی، اسنپ‌پی..."/></label>
           <label>شرح خرید<input value={title} onChange={e => setTitle(e.target.value)} placeholder="مثلاً خرید لوازم خانه"/></label>
-          <label>مبلغ خرید (ریال)<input value={creditAmount} onChange={e => setCreditAmount(formatted(e.target.value))} inputMode="numeric"/></label>
+          
+          <label>مبلغ خرید (ریال)
+            <AmountInput value={creditAmount} onChange={setCreditAmount} placeholder="مبلغ خرید" />
+          </label>
+
           <label>تعداد اقساط<input value={creditCount} onChange={e => setCreditCount(e.target.value)} inputMode="numeric"/></label>
           <JalaliDateField value={creditDue} onChange={setCreditDue} label="اولین سررسید شمسی"/>
           <label className="wide">توضیحات<input value={creditNote} onChange={e => setCreditNote(e.target.value)} placeholder="اختیاری"/></label>
@@ -226,7 +233,7 @@ export default function LoansPage() {
               {rows.map(item => <div className="installment-row" key={item.id}>
                 <span>قسط {new Intl.NumberFormat("fa-IR").format(item.installmentNo)} · {item.dueDate}</span>
                 <b>{money(item.amount-(item.paidAmount||0))}{(item.paidAmount||0)>0&&<small> · پرداخت‌شده: {money(item.paidAmount||0)}</small>}</b>
-                {item.status === "paid" ? <em className="paid"><CheckCircle2 size={14}/> پرداخت‌شده</em> : <button disabled={busy} onClick={() => { setPayingInstallment(item); setPaymentDate(new Date()); setPartialAmount(formatted(String(item.amount-(item.paidAmount||0)))); setPaymentDescription(`پرداخت قسط شماره ${item.installmentNo}`); }}>ثبت پرداخت</button>}
+                {item.status === "paid" ? <em className="paid"><CheckCircle2 size={14}/> پرداخت‌شده</em> : <button disabled={busy} onClick={() => { setPayingInstallment(item); setPaymentDate(new Date()); setPartialAmount(String(item.amount-(item.paidAmount||0))); setPaymentDescription(`پرداخت قسط شماره ${item.installmentNo}`); }}>ثبت پرداخت</button>}
               </div>)}
             </div>
           </details>
@@ -253,7 +260,7 @@ export default function LoansPage() {
               {rows.map(item => <div className="installment-row" key={item.id}>
                 <span>قسط {new Intl.NumberFormat("fa-IR").format(item.installmentNo)} · {item.dueDate}</span>
                 <b>{money(item.amount-(item.paidAmount||0))}{(item.paidAmount||0)>0&&<small> · پرداخت‌شده: {money(item.paidAmount||0)}</small>}</b>
-                {item.status === "paid" ? <em className="paid"><CheckCircle2 size={14}/> پرداخت‌شده</em> : <button disabled={busy} onClick={() => { setPayingInstallment(item); setPaymentDate(new Date()); setPartialAmount(formatted(String(item.amount-(item.paidAmount||0)))); setPaymentDescription(`پرداخت قسط شماره ${item.installmentNo}`); }}>ثبت پرداخت</button>}
+                {item.status === "paid" ? <em className="paid"><CheckCircle2 size={14}/> پرداخت‌شده</em> : <button disabled={busy} onClick={() => { setPayingInstallment(item); setPaymentDate(new Date()); setPartialAmount(String(item.amount-(item.paidAmount||0))); setPaymentDescription(`پرداخت قسط شماره ${item.installmentNo}`); }}>ثبت پرداخت</button>}
               </div>)}
             </div>
           </details>
@@ -268,7 +275,11 @@ export default function LoansPage() {
           <button onClick={()=>setPayingInstallment(null)} aria-label="بستن"><X size={18}/></button>
         </header>
         <div className="loans-fields">
-          <label>مبلغ پرداخت (ریال)<input value={partialAmount} inputMode="numeric" onChange={e=>setPartialAmount(formatted(e.target.value))}/></label>
+          
+          <label>مبلغ پرداخت (ریال)
+            <AmountInput value={partialAmount} onChange={setPartialAmount} placeholder="مبلغ پرداخت" />
+          </label>
+
           <label>پرداخت از حساب<select value={cashId} onChange={e=>setCashId(e.target.value)}>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <JalaliDateField value={paymentDate} onChange={setPaymentDate} label="تاریخ پرداخت"/>
           <label className="wide">شرح پرداخت<input value={paymentDescription} onChange={e=>setPaymentDescription(e.target.value)}/></label>

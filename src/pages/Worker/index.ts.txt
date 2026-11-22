@@ -1,0 +1,32 @@
+
+interface Env {
+  AI_PROVIDER?: string;
+}
+
+const worker = {
+  async fetch(
+    request: Request,
+    env: Env
+  ): Promise<Response> {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/api/health") {
+      return Response.json({
+        success: true,
+        service: "DARMA AI Backend",
+        status: "running",
+        provider: env.AI_PROVIDER ?? "not-configured",
+      });
+    }
+
+    return Response.json(
+      {
+        success: false,
+        message: "مسیر درخواست پیدا نشد.",
+      },
+      { status: 404 }
+    );
+  },
+};
+
+export default worker;
